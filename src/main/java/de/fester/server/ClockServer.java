@@ -39,20 +39,38 @@ public class ClockServer implements ClockCommands {
      * RPC service to handle the forwarding
      */
     private class ClockService extends RemoteClockGrpc.RemoteClockImplBase {
-        @Override
-        public void executeCommand(Command request, StreamObserver<Response> responseObserver) {
-            // Process the command
-            responseObserver.onNext(Response.newBuilder().setContent(processCommand(request)).build());
-            responseObserver.onCompleted();
 
-            // Client told us to exit.
-            if (request.getCmd() == ClockCommands.CMD_EXIT) {
-                try {
-                    stopServer();
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
+        @Override
+        public StreamObserver<Command> executeCommand(StreamObserver<Response> responseObserver) {
+            return new StreamObserver<>() {
+                @Override
+                public void onNext(Command value) {
+                    // Delay
+//                    try {
+//                        Thread.sleep(1000);
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+
+                    responseObserver.onNext(Response.newBuilder().setContent(processCommand(value)).build());
                 }
-            }
+
+                @Override
+                public void onError(Throwable t) {
+
+                }
+
+                @Override
+                public void onCompleted() {
+                    responseObserver.onCompleted();
+
+                    try {
+                        stopServer();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
         }
     }
 

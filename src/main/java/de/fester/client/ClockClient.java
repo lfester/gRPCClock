@@ -2,8 +2,6 @@ package de.fester.client;
 
 import de.fester.clock.ClockCommands;
 import de.fester.grpc.Command;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -61,10 +59,7 @@ public class ClockClient {
     }
 
     void run() {
-        final String target = "localhost:8980";
-
-        ManagedChannel channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
-        ClockStub clockStub = new ClockStub(channel);
+        ClockStub clockStub = new ClockStub(this::display);
 
         display("accepted commands:");
         display("s[tart] h[old] c[ontinue] r[eset])");
@@ -84,9 +79,6 @@ public class ClockClient {
                 case ClockCommands.CMD_EXIT -> clockStub.exit();
                 default -> display("Illegal command");
             }
-
-            // Print response received from server
-            display(clockStub.getLastResponse());
         } while (command.getCmd() != ClockCommands.CMD_EXIT);
     }
 

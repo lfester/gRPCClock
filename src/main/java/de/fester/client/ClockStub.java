@@ -4,22 +4,42 @@ import de.fester.clock.ClockCommands;
 import de.fester.grpc.Command;
 import de.fester.grpc.RemoteClockGrpc;
 import de.fester.grpc.Response;
-import io.grpc.Channel;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 
 public class ClockStub implements ClockCommands {
 
-    private final RemoteClockGrpc.RemoteClockBlockingStub blockingStub;
+    private final StreamObserver<Command> streamObserver;
 
-    private String lastResponse;
+    public ClockStub(ClockStubListener clockStubListener) {
+        ManagedChannel channel = ManagedChannelBuilder.forTarget("localhost:8980").usePlaintext().build();
+        RemoteClockGrpc.RemoteClockStub asyncStub = RemoteClockGrpc.newStub(channel);
 
-    public ClockStub(Channel channel) {
-        blockingStub = RemoteClockGrpc.newBlockingStub(channel);
+        streamObserver = asyncStub.executeCommand(new StreamObserver<>() {
+            @Override
+            public void onNext(Response value) {
+                if (clockStubListener != null)
+                    clockStubListener.receiveResponse(value.getContent());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+
+            }
+
+            @Override
+            public void onCompleted() {
+                streamObserver.onCompleted();
+            }
+        });
     }
 
     public void sendCommand(Command command) {
-        Response response = blockingStub.executeCommand(command);
+        streamObserver.onNext(command);
 
-        lastResponse = response.getContent();
+        if (command.getCmd() == ClockCommands.CMD_EXIT)
+            streamObserver.onCompleted();
     }
 
     public Command buildCommand(int cmd) {
@@ -67,7 +87,7 @@ public class ClockStub implements ClockCommands {
         sendCommand(buildCommand(ClockCommands.CMD_EXIT));
     }
 
-    public String getLastResponse() {
-        return lastResponse;
+    public interface ClockStubListener {
+        void receiveResponse(String response);
     }
 }
